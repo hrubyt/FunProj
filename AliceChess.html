@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Chess Game</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            display: flex;
+            height: 100vh;
+            gap: 20px;
+            justify-content: center;
+            align-items: center;
+        }
+        .chessboard {
+            display: grid;
+            grid-template-columns: repeat(8, 60px);
+            grid-template-rows: repeat(8, 60px);
+            border: 2px solid #333;
+        }
+        .square {
+            width: 60px;
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 36px;
+            cursor: pointer;
+        }
+        .light {
+            background-color: #f0d9b5;
+        }
+        .dark {
+            background-color: #b58863;
+        }
+        .selected {
+            background-color: #a4c2f4 !important;
+        }
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .controls button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        .controls button:active {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div id="chessboard1" class="chessboard"></div>
+        <div class="controls">
+            <button id="restart-button">Restart Game</button>
+            <button id="undo-button">Undo Move</button>
+        </div>
+        <div id="chessboard2" class="chessboard"></div>
+    </div>
+
+    <script>
+        const chessboard1 = document.getElementById('chessboard1');
+        const chessboard2 = document.getElementById('chessboard2');
+        const restartButton = document.getElementById('restart-button');
+        const undoButton = document.getElementById('undo-button');
+        let selectedPiece = null;
+
+        const initialBoard = [
+            ['♜', '♞', '♝', '♛', '♚', '♝', '♞', '♜'],
+            ['♟', '♟', '♟', '♟', '♟', '♟', '♟', '♟'],
+            ['', '', '', '', '', '', '', ''],
+            ['', '', '', '', '', '', '', ''],
+            ['', '', '', '', '', '', '', ''],
+            ['', '', '', '', '', '', '', ''],
+            ['♙', '♙', '♙', '♙', '♙', '♙', '♙', '♙'],
+            ['♖', '♘', '♗', '♕', '♔', '♗', '♘', '♖']
+        ];
+
+        let moveHistory = []; // Stores move history for undo functionality
+
+        function createBoard(boardElement, boardState) {
+            boardElement.innerHTML = ''; // Clear the board before recreating
+            for (let row = 0; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    const square = document.createElement('div');
+                    square.classList.add('square');
+                    square.classList.add((row + col) % 2 === 0 ? 'light' : 'dark');
+                    square.dataset.row = row;
+                    square.dataset.col = col;
+                    square.dataset.board = boardElement.id; // Track which board the square belongs to
+                    square.textContent = boardState[row][col];
+                    square.addEventListener('click', () => handleSquareClick(square));
+                    boardElement.appendChild(square);
+                }
+            }
+        }
+
+        function handleSquareClick(square) {
+            const row = parseInt(square.dataset.row);
+            const col = parseInt(square.dataset.col);
+
+            if (selectedPiece) {
+                movePiece(selectedPiece, { row, col, board: square.dataset.board });
+                selectedPiece.classList.remove('selected');
+                selectedPiece = null;
+            } else if (square.textContent) {
+                selectedPiece = square;
+                selectedPiece.classList.add('selected');
+            }
+        }
+
+        function movePiece(fromSquare, to) {
+            const toBoard = to.board === 'chessboard1' ? chessboard1 : chessboard2;
+            const toSquare = toBoard.querySelector(`.square[data-row='${to.row}'][data-col='${to.col}']`);
+
+            // Save the move to history
+            moveHistory.push({
+                from: {
+                    board: fromSquare.dataset.board,
+                    row: parseInt(fromSquare.dataset.row),
+                    col: parseInt(fromSquare.dataset.col),
+                    piece: fromSquare.textContent
+                },
+                to: {
+                    board: to.board,
+                    row: to.row,
+                    col: to.col,
+                    piece: toSquare.textContent
+                }
+            });
+
+            // Perform the move
+            toSquare.textContent = fromSquare.textContent;
+            fromSquare.textContent = '';
+        }
+
+        function restartGame() {
+            moveHistory = []; // Clear move history
+            createBoard(chessboard1, initialBoard); // Reset first board
+            createBoard(chessboard2, Array(8).fill().map(() => Array(8).fill(''))); // Reset second board
+        }
+
+        function undoMove() {
+            if (moveHistory.length === 0) return; // No moves to undo
+
+            const lastMove = moveHistory.pop();
+            const fromBoard = lastMove.from.board === 'chessboard1' ? chessboard1 : chessboard2;
+            const toBoard = lastMove.to.board === 'chessboard1' ? chessboard1 : chessboard2;
+
+            const fromSquare = fromBoard.querySelector(`.square[data-row='${lastMove.from.row}'][data-col='${lastMove.from.col}']`);
+            const toSquare = toBoard.querySelector(`.square[data-row='${lastMove.to.row}'][data-col='${lastMove.to.col}']`);
+
+            // Revert the move
+            fromSquare.textContent = lastMove.from.piece;
+            toSquare.textContent = lastMove.to.piece;
+        }
+
+        // Event listeners for buttons
+        restartButton.addEventListener('click', restartGame);
+        undoButton.addEventListener('click', undoMove);
+
+        // Initialize the boards
+        restartGame();
+    </script>
+
+</body>
+</html>
