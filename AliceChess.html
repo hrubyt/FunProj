@@ -255,9 +255,40 @@
         function handleSquareClick(square) {
             if (selectedPalettePiece) {
                 // Place the selected palette piece on the square
+                const move = {
+                    from: { piece: selectedPalettePiece.textContent },
+                    to: {
+                        board: square.dataset.board,
+                        row: parseInt(square.dataset.row),
+                        col: parseInt(square.dataset.col),
+                        piece: square.textContent
+                    }
+                };
+                moveHistory.push(move); // Save the move to history
                 square.textContent = selectedPalettePiece.textContent;
                 selectedPalettePiece.classList.remove('selected');
                 selectedPalettePiece = null;
+            } else if (selectedPiece) {
+                // Move the selected piece to the clicked square
+                const move = {
+                    from: {
+                        board: selectedPiece.dataset.board,
+                        row: parseInt(selectedPiece.dataset.row),
+                        col: parseInt(selectedPiece.dataset.col),
+                        piece: selectedPiece.textContent
+                    },
+                    to: {
+                        board: square.dataset.board,
+                        row: parseInt(square.dataset.row),
+                        col: parseInt(square.dataset.col),
+                        piece: square.textContent
+                    }
+                };
+                moveHistory.push(move); // Save the move to history
+                square.textContent = selectedPiece.textContent;
+                selectedPiece.textContent = '';
+                selectedPiece.classList.remove('selected');
+                selectedPiece = null;
             } else if (square.textContent) {
                 // Select a piece on the board
                 if (selectedPiece) {
@@ -266,31 +297,6 @@
                 selectedPiece = square;
                 selectedPiece.classList.add('selected');
             }
-        }
-
-        function movePiece(fromSquare, to) {
-            const toBoard = to.board === 'chessboard1' ? chessboard1 : chessboard2;
-            const toSquare = toBoard.querySelector(`.square[data-row='${to.row}'][data-col='${to.col}']`);
-
-            // Save the move to history
-            moveHistory.push({
-                from: {
-                    board: fromSquare.dataset.board,
-                    row: parseInt(fromSquare.dataset.row),
-                    col: parseInt(fromSquare.dataset.col),
-                    piece: fromSquare.textContent
-                },
-                to: {
-                    board: to.board,
-                    row: to.row,
-                    col: to.col,
-                    piece: toSquare.textContent
-                }
-            });
-
-            // Perform the move
-            toSquare.textContent = fromSquare.textContent;
-            fromSquare.textContent = '';
         }
 
         function restartGame() {
@@ -306,12 +312,17 @@
             const fromBoard = lastMove.from.board === 'chessboard1' ? chessboard1 : chessboard2;
             const toBoard = lastMove.to.board === 'chessboard1' ? chessboard1 : chessboard2;
 
-            const fromSquare = fromBoard.querySelector(`.square[data-row='${lastMove.from.row}'][data-col='${lastMove.from.col}']`);
-            const toSquare = toBoard.querySelector(`.square[data-row='${lastMove.to.row}'][data-col='${lastMove.to.col}']`);
-
-            // Revert the move
-            fromSquare.textContent = lastMove.from.piece;
-            toSquare.textContent = lastMove.to.piece;
+            if (lastMove.from.piece) {
+                // Undo a palette placement
+                const toSquare = toBoard.querySelector(`.square[data-row='${lastMove.to.row}'][data-col='${lastMove.to.col}']`);
+                toSquare.textContent = lastMove.to.piece;
+            } else {
+                // Undo a piece movement
+                const fromSquare = fromBoard.querySelector(`.square[data-row='${lastMove.from.row}'][data-col='${lastMove.from.col}']`);
+                const toSquare = toBoard.querySelector(`.square[data-row='${lastMove.to.row}'][data-col='${lastMove.to.col}']`);
+                fromSquare.textContent = lastMove.from.piece;
+                toSquare.textContent = lastMove.to.piece;
+            }
         }
 
         // Event listeners for buttons
