@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seven Body Problem Visualization with Pause Functionality</title>
+  <style>
+    canvas {
+      display: block;
+      margin: 0 auto;
+      background: #000;
+    }
+    .controls {
+      text-align: center;
+      margin-top: 10px;
+    }
+    .color-buttons {
+      margin-top: 10px;
+    }
+    .color-buttons button {
+      margin: 5px;
+      padding: 10px;
+      border: none;
+      cursor: pointer;
+    }
+    .color-buttons button.red { background-color: red; color: white; }
+    .color-buttons button.blue { background-color: blue; color: white; }
+    .color-buttons button.green { background-color: green; color: white; }
+    .color-buttons button.yellow { background-color: yellow; color: black; }
+    .color-buttons button.purple { background-color: purple; color: white; }
+    .color-buttons button.cyan { background-color: cyan; color: black; }
+    .color-buttons button.orange { background-color: orange; color: black; }
+  </style>
+</head>
+<body>
+  <canvas id="sevenBodyCanvas" width="800" height="600"></canvas>
+  <div class="controls">
+    <button id="restartButton">Restart</button>
+    <button id="pausePlayButton">Play</button>
+    <label for="timeSlider">Simulation Speed:</label>
+    <input type="range" id="timeSlider" min="1" max="10" value="5">
+  </div>
+  <div class="color-buttons">
+    <button class="red">Red</button>
+    <button class="blue">Blue</button>
+    <button class="green">Green</button>
+    <button class="yellow">Yellow</button>
+    <button class="purple">Purple</button>
+    <button class="cyan">Cyan</button>
+    <button class="orange">Orange</button>
+  </div>
+  <script>
+    const G = 1; // Gravitational constant
+
+    class Body {
+      constructor(x, y, vx, vy, mass, color) {
+        this.x = x;
+        this.y = y;
+        this.vx = vx;
+        this.vy = vy;
+        this.mass = mass;
+        this.color = color;
+        this.visible = true; // New property to control visibility
+      }
+
+      accelerateTowards(body) {
+        if (!this.visible || !body.visible) return; // Ignore invisible bodies
+        const dx = body.x - this.x;
+        const dy = body.y - this.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance === 0) return; // Avoid division by zero
+        const forceMagnitude = (G * this.mass * body.mass) / (distance * distance);
+        const fx = forceMagnitude * dx / distance;
+        const fy = forceMagnitude * dy / distance;
+        this.vx += fx / this.mass;
+        this.vy += fy / this.mass;
+      }
+
+      updatePosition(timeStep) {
+        this.x += this.vx * timeStep;
+        this.y += this.vy * timeStep;
+      }
+
+      draw(ctx, scale, offsetX, offsetY) {
+        if (!this.visible) return; // Do not draw invisible bodies
+        const scaledX = (this.x * scale) + offsetX;
+        const scaledY = (this.y * scale) + offsetY;
+        const radius = Math.sqrt(this.mass) * scale; // Radius proportional to sqrt(mass)
+        ctx.beginPath();
+        ctx.arc(scaledX, scaledY, radius, 0, Math.PI * 2);
+        ctx.fillStyle = this.color;
+        ctx.fill();
+        ctx.closePath();
+      }
+    }
+
+    const canvas = document.getElementById('sevenBodyCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let bodies = [];
+    const colors = ['red', 'blue', 'green', 'yellow', 'purple', 'cyan', 'orange'];
+    const maxSpeed = 2; // Maximum initial speed
+    const minMass = 100, maxMass = 2000; // Increased mass range for more variability
+
+    function getRandomPosition(canvasSize) {
+      return Math.random() * canvasSize;
+    }
+
+    function getRandomVelocity(maxSpeed) {
+      return (Math.random() - 0.5) * maxSpeed * 2; // Random velocity between -maxSpeed and +maxSpeed
+    }
+
+    function initializeBodies() {
+      bodies = [];
+      for (let i = 0; i < 7; i++) { // Seven bodies now
+        const x = getRandomPosition(canvas.width);
+        const y = getRandomPosition(canvas.height);
+        const vx = getRandomVelocity(maxSpeed);
+        const vy = getRandomVelocity(maxSpeed);
+        const mass = minMass + Math.random() * (maxMass - minMass); // Random mass
+        bodies.push(new Body(x, y, vx, vy, mass, colors[i]));
+      }
+    }
+
+    function calculateBounds() {
+      let minX = Infinity, maxX = -Infinity;
+      let minY = Infinity, maxY = -Infinity;
+
+      bodies.forEach(body => {
+        if (body.visible) { // Only consider visible bodies for bounds
+          if (body.x < minX) minX = body.x;
+          if (body.x > maxX) maxX = body.x;
+          if (body.y < minY) minY = body.y;
+          if (body.y > maxY) maxY = body.y;
+        }
+      });
+
+      return { minX, maxX, minY, maxY };
+    }
+
+    function calculateScale(bounds) {
+      const canvasWidth = canvas.width;
+      const canvasHeight = canvas.height;
+      const width = bounds.maxX - bounds.minX || 1; // Avoid division by zero
+      const height = bounds.maxY - bounds.minY || 1; // Avoid division by zero
+
+      const scaleX = canvasWidth / width;
+      const scaleY = canvasHeight / height;
+
+      return Math.min(scaleX, scaleY) * 0.9; // Add some padding
+    }
+
+    function calculateOffset(bounds, scale) {
+      const centerX = (bounds.minX + bounds.maxX) / 2;
+      const centerY = (bounds.minY + bounds.maxY) / 2;
+
+      const offsetX = canvas.width / 2 - centerX * scale;
+      const offsetY = canvas.height / 2 - centerY * scale;
+
+      return { offsetX, offsetY };
+    }
+
+    let timeStep = 1; // Default time step
+    let animationFrameId = null;
+    let isPaused = true; // Start in paused state
+
+    function animate() {
+      if (isPaused) return; // Stop animation if paused
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Calculate acceleration for each body due to all other bodies
+      bodies.forEach(body => {
+        bodies.forEach(other => {
+          if (body !== other) {
+            body.accelerateTowards(other);
+          }
+        });
+      });
+
+      // Update positions based on time step
+      bodies.forEach(body => body.updatePosition(timeStep));
+
+      // Calculate bounds, scale, and offset
+      const bounds = calculateBounds();
+      const scale = calculateScale(bounds);
+      const { offsetX, offsetY } = calculateOffset(bounds, scale);
+
+      // Draw only visible bodies
+      bodies.forEach(body => body.draw(ctx, scale, offsetX, offsetY));
+
+      animationFrameId = requestAnimationFrame(animate);
+    }
+
+    // Initialize bodies but do not start animation yet
+    initializeBodies();
+
+    // Restart button functionality
+    document.getElementById('restartButton').addEventListener('click', () => {
+      cancelAnimationFrame(animationFrameId); // Stop current animation
+      initializeBodies(); // Re-randomize bodies
+      bodies.forEach(body => body.visible = true); // Reset visibility
+      isPaused = true; // Restart in paused state
+      document.getElementById('pausePlayButton').textContent = 'Play';
+    });
+
+    // Time slider functionality
+    document.getElementById('timeSlider').addEventListener('input', (event) => {
+      timeStep = event.target.value / 5; // Adjust time step based on slider value
+    });
+
+    // Color button functionality
+    document.querySelectorAll('.color-buttons button').forEach(button => {
+      button.addEventListener('click', () => {
+        const color = button.className; // Get the color from the button's class
+        bodies.forEach(body => {
+          if (body.color === color) {
+            body.visible = !body.visible; // Toggle visibility
+          }
+        });
+      });
+    });
+
+    // Pause/Play button functionality
+    document.getElementById('pausePlayButton').addEventListener('click', () => {
+      isPaused = !isPaused; // Toggle pause state
+      if (isPaused) {
+        cancelAnimationFrame(animationFrameId); // Pause animation
+        document.getElementById('pausePlayButton').textContent = 'Play';
+      } else {
+        document.getElementById('pausePlayButton').textContent = 'Pause';
+        animate(); // Resume animation
+      }
+    });
+
+    // Start in paused state
+    document.getElementById('pausePlayButton').textContent = 'Play';
+  </script>
+</body>
+</html>
