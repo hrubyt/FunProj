@@ -5,40 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Simple Chess Game</title>
     <style>
-        html, body {
-            height: 100%;
-            margin: 0;
-            overflow: hidden;
-            background-color: #f0f0f0;
+        body {
             font-family: Arial, sans-serif;
-        }
-        .container {
             display: flex;
-            height: 100vh;
-            gap: 40px; /* Spacing between boards */
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
-            margin-left: 150px; /* Space for buttons on the left */
         }
-        .chessboard-container {
-            display: flex;
-            align-items: flex-end;
-        }
-        .chessboard {
+        #board {
             display: grid;
-            grid-template-columns: repeat(8, 60px);
-            grid-template-rows: repeat(8, 60px);
-            border: 2px solid #333;
-            position: relative;
+            grid-template-columns: repeat(8, 50px);
+            grid-template-rows: repeat(8, 50px);
+            margin-top: 20px;
         }
         .square {
-            width: 60px;
-            height: 60px;
+            width: 50px;
+            height: 50px;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 36px;
-            cursor: pointer;
+            font-size: 30px;
         }
         .light {
             background-color: #f0d9b5;
@@ -46,135 +31,21 @@
         .dark {
             background-color: #b58863;
         }
-        .selected {
-            background-color: #a4c2f4 !important;
-        }
-        .coordinates {
-            position: absolute;
-            font-size: 14px;
-            color: #333;
-        }
-        .coordinates.top {
-            top: -20px;
-            left: 0;
-            width: 100%;
-            display: flex;
-            justify-content: space-around;
-        }
-        .coordinates.bottom {
-            bottom: -20px;
-            left: 0;
-            width: 100%;
-            display: flex;
-            justify-content: space-around;
-        }
-        .coordinates.left {
-            left: -20px;
-            top: 0;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-around;
-        }
-        .coordinates.right {
-            right: -20px;
-            top: 0;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-around;
-        }
-        .controls {
-            position: fixed; /* Fixed position to keep buttons visible */
-            top: 20px;
-            left: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        .controls button {
-            padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
-            background-color: #ff4d4d; /* Red color */
-            color: white;
-            border: none;
-            border-radius: 5px;
-            transition: background-color 0.3s;
-        }
-        .controls button:hover {
-            background-color: #ff1a1a; /* Darker red on hover */
-        }
-        .controls button:active {
-            background-color: #cc0000; /* Even darker red on click */
-        }
-        .pieces-palette {
-            position: fixed;
-            top: 120px; /* Below the buttons */
-            left: 20px;
-            display: grid;
-            grid-template-columns: repeat(2, 60px);
-            grid-template-rows: repeat(6, 60px);
-            gap: 5px;
-        }
-        .pieces-palette .piece {
-            width: 60px;
-            height: 60px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 36px;
-            cursor: pointer;
-            background-color: #ddd;
-            border: 1px solid #999;
-            border-radius: 5px;
-        }
-        .pieces-palette .piece.selected {
-            background-color: #a4c2f4;
+        button {
+            margin: 5px;
         }
     </style>
 </head>
 <body>
-
-    <!-- Buttons placed outside the boards -->
-    <div class="controls">
-        <button id="restart-button">Restart Game</button>
-        <button id="undo-button">Undo Move</button>
-    </div>
-
-    <!-- Pieces Palette (6x2 grid) -->
-    <div class="pieces-palette">
-        <div class="piece">♜</div>
-        <div class="piece">♞</div>
-        <div class="piece">♝</div>
-        <div class="piece">♛</div>
-        <div class="piece">♚</div>
-        <div class="piece">♟</div>
-        <div class="piece">♖</div>
-        <div class="piece">♘</div>
-        <div class="piece">♗</div>
-        <div class="piece">♕</div>
-        <div class="piece">♔</div>
-        <div class="piece">♙</div>
-    </div>
-
-    <!-- Chessboards -->
-    <div class="container">
-        <div class="chessboard-container">
-            <div id="chessboard1" class="chessboard"></div>
-        </div>
-        <div class="chessboard-container">
-            <div id="chessboard2" class="chessboard"></div>
-        </div>
-    </div>
+    <h1>Simple Chess Game</h1>
+    <button id="restartButton">Restart Game</button>
+    <button id="undoButton">Undo Move</button>
+    <div id="board"></div>
 
     <script>
-        const chessboard1 = document.getElementById('chessboard1');
-        const chessboard2 = document.getElementById('chessboard2');
-        const restartButton = document.getElementById('restart-button');
-        const undoButton = document.getElementById('undo-button');
-        let selectedPiece = null;
-        let selectedPalettePiece = null;
+        const board = document.getElementById('board');
+        const restartButton = document.getElementById('restartButton');
+        const undoButton = document.getElementById('undoButton');
 
         const initialBoard = [
             ['♜', '♞', '♝', '♛', '♚', '♝', '♞', '♜'],
@@ -187,163 +58,71 @@
             ['♖', '♘', '♗', '♕', '♔', '♗', '♘', '♖']
         ];
 
-        let moveHistory = []; // Stores move history for undo functionality
+        let currentBoard = JSON.parse(JSON.stringify(initialBoard));
+        let moveHistory = [];
 
-        function createBoard(boardElement, boardState) {
-            boardElement.innerHTML = ''; // Clear the board before recreating
-
-            // Add coordinates
-            const columns = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
-            const rows = ['8', '7', '6', '5', '4', '3', '2', '1'];
-
-            // Top coordinates (letters)
-            const topCoordinates = document.createElement('div');
-            topCoordinates.classList.add('coordinates', 'top');
-            columns.forEach(letter => {
-                const coord = document.createElement('div');
-                coord.textContent = letter;
-                topCoordinates.appendChild(coord);
-            });
-            boardElement.appendChild(topCoordinates);
-
-            // Left coordinates (numbers)
-            const leftCoordinates = document.createElement('div');
-            leftCoordinates.classList.add('coordinates', 'left');
-            rows.forEach(number => {
-                const coord = document.createElement('div');
-                coord.textContent = number;
-                leftCoordinates.appendChild(coord);
-            });
-            boardElement.appendChild(leftCoordinates);
-
-            // Bottom coordinates (letters)
-            const bottomCoordinates = document.createElement('div');
-            bottomCoordinates.classList.add('coordinates', 'bottom');
-            columns.forEach(letter => {
-                const coord = document.createElement('div');
-                coord.textContent = letter;
-                bottomCoordinates.appendChild(coord);
-            });
-            boardElement.appendChild(bottomCoordinates);
-
-            // Right coordinates (numbers)
-            const rightCoordinates = document.createElement('div');
-            rightCoordinates.classList.add('coordinates', 'right');
-            rows.forEach(number => {
-                const coord = document.createElement('div');
-                coord.textContent = number;
-                rightCoordinates.appendChild(coord);
-            });
-            boardElement.appendChild(rightCoordinates);
-
-            // Create squares
-            for (let row = 0; row < 8; row++) {
-                for (let col = 0; col < 8; col++) {
+        function createBoard() {
+            board.innerHTML = '';
+            currentBoard.forEach((row, rowIndex) => {
+                row.forEach((piece, colIndex) => {
                     const square = document.createElement('div');
+                    square.classList.add((rowIndex + colIndex) % 2 === 0 ? 'light' : 'dark');
                     square.classList.add('square');
-                    square.classList.add((row + col) % 2 === 0 ? 'light' : 'dark');
-                    square.dataset.row = row;
-                    square.dataset.col = col;
-                    square.dataset.board = boardElement.id; // Track which board the square belongs to
-                    square.textContent = boardState[row][col];
-                    square.addEventListener('click', () => handleSquareClick(square));
-                    boardElement.appendChild(square);
-                }
-            }
+                    square.textContent = piece;
+                    square.dataset.row = rowIndex;
+                    square.dataset.col = colIndex;
+                    square.addEventListener('click', handleSquareClick);
+                    board.appendChild(square);
+                });
+            });
         }
 
-        function handleSquareClick(square) {
-            if (selectedPalettePiece) {
-                // Place the selected palette piece on the square
-                const move = {
-                    from: { piece: selectedPalettePiece.textContent },
-                    to: {
-                        board: square.dataset.board,
-                        row: parseInt(square.dataset.row),
-                        col: parseInt(square.dataset.col),
-                        piece: square.textContent
-                    }
-                };
-                moveHistory.push(move); // Save the move to history
-                square.textContent = selectedPalettePiece.textContent;
-                selectedPalettePiece.classList.remove('selected');
-                selectedPalettePiece = null;
-            } else if (selectedPiece) {
-                // Move the selected piece to the clicked square
-                const move = {
-                    from: {
-                        board: selectedPiece.dataset.board,
-                        row: parseInt(selectedPiece.dataset.row),
-                        col: parseInt(selectedPiece.dataset.col),
-                        piece: selectedPiece.textContent
-                    },
-                    to: {
-                        board: square.dataset.board,
-                        row: parseInt(square.dataset.row),
-                        col: parseInt(square.dataset.col),
-                        piece: square.textContent
-                    }
-                };
-                moveHistory.push(move); // Save the move to history
-                square.textContent = selectedPiece.textContent;
-                selectedPiece.textContent = '';
-                selectedPiece.classList.remove('selected');
+        let selectedPiece = null;
+
+        function handleSquareClick(event) {
+            const target = event.target;
+            const row = parseInt(target.dataset.row);
+            const col = parseInt(target.dataset.col);
+
+            if (selectedPiece) {
+                const [prevRow, prevCol] = selectedPiece;
+                const piece = currentBoard[prevRow][prevCol];
+                const capturedPiece = currentBoard[row][col];
+
+                if (capturedPiece || piece) {
+                    moveHistory.push({ from: [prevRow, prevCol], to: [row, col], captured: capturedPiece });
+                }
+
+                currentBoard[row][col] = piece;
+                currentBoard[prevRow][prevCol] = '';
                 selectedPiece = null;
-            } else if (square.textContent) {
-                // Select a piece on the board
-                if (selectedPiece) {
-                    selectedPiece.classList.remove('selected');
-                }
-                selectedPiece = square;
-                selectedPiece.classList.add('selected');
+                createBoard();
+            } else if (currentBoard[row][col]) {
+                selectedPiece = [row, col];
+                target.style.backgroundColor = 'yellow';
             }
         }
 
-        function restartGame() {
-            moveHistory = []; // Clear move history
-            createBoard(chessboard1, initialBoard); // Reset first board
-            createBoard(chessboard2, Array(8).fill().map(() => Array(8).fill(''))); // Reset second board
-        }
+        restartButton.addEventListener('click', () => {
+            currentBoard = JSON.parse(JSON.stringify(initialBoard));
+            moveHistory = [];
+            createBoard();
+        });
 
-        function undoMove() {
-            if (moveHistory.length === 0) return; // No moves to undo
+        undoButton.addEventListener('click', () => {
+            if (moveHistory.length > 0) {
+                const lastMove = moveHistory.pop();
+                const { from, to, captured } = lastMove;
+                const [fromRow, fromCol] = from;
+                const [toRow, toCol] = to;
 
-            const lastMove = moveHistory.pop();
-            const fromBoard = lastMove.from.board === 'chessboard1' ? chessboard1 : chessboard2;
-            const toBoard = lastMove.to.board === 'chessboard1' ? chessboard1 : chessboard2;
-
-            if (lastMove.from.piece) {
-                // Undo a palette placement
-                const toSquare = toBoard.querySelector(`.square[data-row='${lastMove.to.row}'][data-col='${lastMove.to.col}']`);
-                toSquare.textContent = lastMove.to.piece;
-            } else {
-                // Undo a piece movement
-                const fromSquare = fromBoard.querySelector(`.square[data-row='${lastMove.from.row}'][data-col='${lastMove.from.col}']`);
-                const toSquare = toBoard.querySelector(`.square[data-row='${lastMove.to.row}'][data-col='${lastMove.to.col}']`);
-                fromSquare.textContent = lastMove.from.piece;
-                toSquare.textContent = lastMove.to.piece;
-            }
-        }
-
-        // Event listeners for buttons
-        restartButton.addEventListener('click', restartGame);
-        undoButton.addEventListener('click', undoMove);
-
-        // Initialize the boards
-        restartGame();
-
-        // Handle piece selection from the palette
-        const piecesPalette = document.querySelector('.pieces-palette');
-        piecesPalette.addEventListener('click', (e) => {
-            if (e.target.classList.contains('piece')) {
-                if (selectedPalettePiece) {
-                    selectedPalettePiece.classList.remove('selected');
-                }
-                selectedPalettePiece = e.target;
-                selectedPalettePiece.classList.add('selected');
+                currentBoard[fromRow][fromCol] = currentBoard[toRow][toCol];
+                currentBoard[toRow][toCol] = captured || '';
+                createBoard();
             }
         });
-    </script>
 
+        createBoard();
+    </script>
 </body>
 </html>
